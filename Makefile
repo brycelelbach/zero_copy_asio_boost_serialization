@@ -5,7 +5,7 @@ ifdef DEBUG
 	CXXFLAGS+=-O0 -g
 else
 	BOOST_ROOT=/opt/boost/1.50.0-release
-	CXXFLAGS+=-O3
+	CXXFLAGS+=-O3 -finline
 endif
 
 ifdef CHECK_DATA
@@ -16,7 +16,7 @@ CXXFLAGS+=-std=c++0x -L$(BOOST_ROOT)/stage/lib -Wl,-rpath $(BOOST_ROOT)/stage/li
 INCLUDES=-I$(BOOST_ROOT)
 LIBS=-lrt -lboost_thread -lboost_system -lboost_program_options -lboost_serialization -lboost_chrono
 ADDITIONAL_SOURCES=portable_binary_iarchive.cpp portable_binary_oarchive.cpp
-PROGRAMS=zero_copy_test
+PROGRAMS=zero_copy_test control_case_test
 DIRECTORIES=build
 
 all: directories $(PROGRAMS)

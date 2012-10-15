@@ -25,12 +25,8 @@
 #include "portable_binary_iarchive.hpp"
 #include "portable_binary_oarchive.hpp"
 
-// NOTE: Not using the actual HPX portable binary archive so that I can keep
-// this example minimal. Same rationale for not using the real Boost.Endian
-// stuff.
-//typedef boost::archive::binary_oarchive portable_binary_oarchive;
-//typedef boost::archive::binary_iarchive portable_binary_iarchive;
-
+// NOTE: Not using the actual Boost.Endian code to avoid copying more stuff
+// over to this git repository.
 namespace boost { namespace integer { typedef boost::uint64_t ulittle64_t; }}
 
 template <typename T, typename enable = void>
@@ -84,7 +80,12 @@ struct zero_copy_oarchive : boost::enable_shared_from_this<zero_copy_oarchive>
       , bool homogeneity = true
         )
       : socket_(&socket)
+      , handler_()
       , homogeneity_(homogeneity)
+      , message_()
+      , chunk_sizes_()
+      , chunks_()
+      , slow_buffers_()
     {}
 
     ~zero_copy_oarchive()
@@ -148,9 +149,11 @@ struct zero_copy_oarchive : boost::enable_shared_from_this<zero_copy_oarchive>
         typedef container_device<std::vector<char> > io_device_type;
         boost::iostreams::stream<io_device_type> io(slow_buffer_);
 
-        // Serialize t the slow way.
-        portable_binary_oarchive archive(io);
-        archive & t;
+        {
+            // Serialize t the slow way.
+            portable_binary_oarchive archive(io);
+            archive & t;
+        }
 
         // Save the size, so we can know how much to read on the other end.
         // This allows us to do zero copy when reading.
@@ -218,7 +221,8 @@ struct zero_copy_oarchive : boost::enable_shared_from_this<zero_copy_oarchive>
       , Parcel& p
         )
     {
-        handler_();
+        if (handler_)
+            handler_();
 
         message_.clear();
         chunk_sizes_.clear();
@@ -261,13 +265,14 @@ struct zero_copy_iarchive : boost::enable_shared_from_this<zero_copy_oarchive>
       , bool homogeneity = true
         )
       : socket_(&socket)
+      , handler_()
       , homogeneity_(homogeneity)
-      , pass_()
+      , pass_(0)
       , message_()
       , chunk_sizes_()
       , current_chunk_(0)
       , slow_buffers_()
-      , current_slow_buffer_()
+      , current_slow_buffer_(0)
     {}
 
     ~zero_copy_iarchive()
@@ -352,6 +357,8 @@ struct zero_copy_iarchive : boost::enable_shared_from_this<zero_copy_oarchive>
     template <typename T>
     void slow_load_pass1(T& t)
     {
+        std::cout << "called 1\n";
+
         // Use the size list to figure out how large this vector has to be.
         slow_buffers_.push_back(std::vector<char>
             (chunk_sizes_.at(current_chunk_++)));
@@ -363,15 +370,19 @@ struct zero_copy_iarchive : boost::enable_shared_from_this<zero_copy_oarchive>
     template <typename T>
     void slow_load_pass2(T& t)
     {
+        std::cout << "called 2\n";
+
         std::vector<char>& slow_buffer_
             = slow_buffers_.at(current_slow_buffer_++);
 
         typedef container_device<std::vector<char> > io_device_type;
         boost::iostreams::stream<io_device_type> io(slow_buffer_);
 
-        // Deserialize t the slow way.
-        portable_binary_iarchive archive(io);
-        archive & t;
+        {
+            // Deserialize t the slow way.
+            portable_binary_iarchive archive(io);
+            archive & t;
+        }
     }
 
     // Synchronously read a data structure from the socket.
@@ -391,16 +402,12 @@ struct zero_copy_iarchive : boost::enable_shared_from_this<zero_copy_oarchive>
 
         // First pass. Create the message structure. Note that this doesn't
         // actually read in anything.
-        // FIXME: Not sure if this is the correct way to kick off the
-        // serialization call chain.
         pass_ = 1;
         *this & p;
 
         boost::asio::read(*socket_, message_);
 
         // Second pass. Do any required deserialization. 
-        // FIXME: Not sure if this is the correct way to kick off the
-        // serialization call chain.
         pass_ = 2;
         *this & p;
 
@@ -458,8 +465,6 @@ struct zero_copy_iarchive : boost::enable_shared_from_this<zero_copy_oarchive>
     {
         // First pass. Create the message structure. Note that this doesn't
         // actually read in anything.
-        // FIXME: Not sure if this is the correct way to kick off the
-        // serialization call chain.
         pass_ = 1;
         *this & p;
 
@@ -479,12 +484,11 @@ struct zero_copy_iarchive : boost::enable_shared_from_this<zero_copy_oarchive>
         )
     {
         // Second pass. Do any required deserialization. 
-        // FIXME: Not sure if this is the correct way to kick off the
-        // serialization call chain.
         pass_ = 2;
         *this & p;
 
-        handler_();
+        if (handler_)
+            handler_();
 
         message_.clear();
         chunk_sizes_.clear();

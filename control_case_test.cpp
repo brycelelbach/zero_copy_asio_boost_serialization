@@ -7,7 +7,7 @@
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include "zero_copy_archive.hpp"
+#include "control_case_archive.hpp"
 #include "high_resolution_timer.hpp"
 
 #include <boost/lexical_cast.hpp>
@@ -50,8 +50,8 @@ using boost::asio::ip::tcp;
 
 // Receive, then send.
 void receive(
-    zero_copy_oarchive& sender
-  , zero_copy_iarchive& receiver
+    control_case_oarchive& sender
+  , control_case_iarchive& receiver
   , std::vector<double>& data
   , boost::uint64_t iteration
     )
@@ -75,15 +75,15 @@ void receive(
                       << " as the value for element " << i
                       << ", expected " << correct_data[i]
                       << " (iteration " << iteration << ")\n";
-
         }
     }
 #endif
 }
 
+// Send, then receive. 
 void send(
-    zero_copy_oarchive& sender
-  , zero_copy_iarchive& receiver
+    control_case_oarchive& sender
+  , control_case_iarchive& receiver
   , std::vector<double>& data
   , boost::uint64_t iteration
     )
@@ -142,8 +142,8 @@ std::string server_main(variables_map& vm)
     acceptor.set_option(tcp::acceptor::linger(true, 0));
 
     tcp::socket s(io_service);
-    zero_copy_oarchive sender(s);
-    zero_copy_iarchive receiver(s);
+    control_case_oarchive sender(s);
+    control_case_iarchive receiver(s);
 
     // Start accepting connections.
     acceptor.accept(s);
@@ -190,8 +190,8 @@ std::string client_main(variables_map& vm)
     tcp::resolver::iterator iterator = resolver.resolve(query);
 
     tcp::socket s(io_service);
-    zero_copy_oarchive sender(s);
-    zero_copy_iarchive receiver(s);
+    control_case_oarchive sender(s);
+    control_case_iarchive receiver(s);
 
     // Connect to the target.
     boost::asio::connect(s, iterator);
@@ -230,7 +230,7 @@ int main(int argc, char** argv)
     variables_map vm;
 
     options_description
-        cmdline("Usage: zero_copy_test <-s|-c|-b> [options]");
+        cmdline("Usage: control_case_test <-s|-c|-b> [options]");
 
     cmdline.add_options()
         ( "help,h"

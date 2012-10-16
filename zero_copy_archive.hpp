@@ -357,8 +357,6 @@ struct zero_copy_iarchive : boost::enable_shared_from_this<zero_copy_oarchive>
     template <typename T>
     void slow_load_pass1(T& t)
     {
-        std::cout << "called 1\n";
-
         // Use the size list to figure out how large this vector has to be.
         slow_buffers_.push_back(std::vector<char>
             (chunk_sizes_.at(current_chunk_++)));
@@ -370,8 +368,6 @@ struct zero_copy_iarchive : boost::enable_shared_from_this<zero_copy_oarchive>
     template <typename T>
     void slow_load_pass2(T& t)
     {
-        std::cout << "called 2\n";
-
         std::vector<char>& slow_buffer_
             = slow_buffers_.at(current_slow_buffer_++);
 
